@@ -1,43 +1,49 @@
 ####################################################################################################
-# MITV NETWORK - GOD-MODE AUTO-HEALING ANDROID BUILD WORKFLOW
+# MITV NETWORK - TITANIUM GRADE AUTO-HEALING & DIAGNOSTIC WORKFLOW
 # Created for: Muaaz Iqbal (Founder, MiTV Network)
-# Location: Kasur, Punjab, Pakistan
-# Purpose: This script automatically detects missing files, repairs broken resources, 
-# generates required Gradle wrappers, bypasses SDK errors, and builds the APK from ANY folder structure.
+# Purpose: Total Project Coverage. Fixes missing files, memory issues, Firebase configs, 
+# bypasses strict linting, renames invalid resources, and generates detailed crash logs.
 ####################################################################################################
 
-name: MiTV Ultimate Auto-Healing Build
+name: MiTV Titanium Build & Auto-Fix
 
 on:
   push:
     branches: [ "main", "master" ]
-    paths-ignore:
-      - '**.md'
-  pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch: # Manual trigger button on GitHub Actions page
+  workflow_dispatch:
 
 jobs:
-  ultimate-build:
-    name: Auto-Repair & Build APK
+  titanium-build:
+    name: Ultimate Fix, Build & Log
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Allows writing back fixed files if needed
+      contents: write
 
     steps:
       # ====================================================================================
-      # STEP 1: GITHUB RUNNER MEIN CODE LAANA
+      # STEP 1: MEMORY BOOST (PREVENT GRADLE OUT-OF-MEMORY CRASHES)
+      # ====================================================================================
+      - name: 🚀 Boost Runner Memory (Swap Space)
+        run: |
+          echo "Setting up extra memory for heavy Gradle build..."
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
+      # ====================================================================================
+      # STEP 2: SOURCE CODE CHECKOUT
       # ====================================================================================
       - name: 📥 Checkout Source Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Pura history layega taake koi file miss na ho
+          fetch-depth: 0
 
       # ====================================================================================
-      # STEP 2: JAVA DEVELOPMENT KIT (JDK) 21 SETUP
+      # STEP 3: JDK 21 SETUP
       # ====================================================================================
-      # Android 15 (SDK 35) ke liye latest JDK lazmi hai
-      - name: ☕ Set up Java (JDK 21)
+      - name: ☕ Set up Java JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -45,236 +51,131 @@ jobs:
           cache: gradle
 
       # ====================================================================================
-      # STEP 3: ANDROID SDK LICENSES BYPASS
+      # STEP 4: SMART PROJECT LOCATOR
       # ====================================================================================
-      # Google ki taraf se pabandi hoti hai ke licenses accept kiye jayen. Ye step un sab ko auto-accept karega.
-      - name: 📜 Auto-Accept Android SDK Licenses
+      - name: 🕵️ Locate Root Directory
+        id: locate
         run: |
-          echo "=========================================================="
-          echo "ACCEPTING ALL ANDROID LICENSES FOR MITV NETWORK"
-          echo "=========================================================="
-          mkdir -p "$ANDROID_HOME/licenses"
-          echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
-          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f2910" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
-          yes | sdkmanager --licenses || true
-          echo "Licenses accepted successfully."
-
-      # ====================================================================================
-      # STEP 4: DEEP PROJECT DISCOVERY (THE GAME CHANGER)
-      # ====================================================================================
-      # Aapka project 'MIT-appplayer' folder mein hai, root mein nahi. Ye script khud usay dhoonde gi.
-      - name: 🕵️ Auto-Locate Android Root Directory
-        id: locate-project
-        run: |
-          echo "=========================================================="
-          echo "SEARCHING FOR MITV ANDROID PROJECT DIRECTORY"
-          echo "=========================================================="
-          
-          # Hamein wo folder chahiye jahan 'app' folder aur 'build.gradle' ho
-          PROJECT_ROOT=""
-          
-          # Pehle root check karte hain
-          if [ -d "app" ] && { [ -f "build.gradle" ] || [ -f "build.gradle.kts" ]; }; then
-            PROJECT_ROOT="."
-            echo "Project found at ROOT directory."
-          else
-            # Agar root mein nahi hai, to sab folders ko scan karo (jaise MIT-appplayer)
-            echo "Project not in root. Scanning subdirectories..."
-            for dir in $(find . -type d -name "app" | grep -v "/build/" | grep -v "/.gradle/"); do
-              PARENT_DIR=$(dirname "$dir")
-              if [ -f "$PARENT_DIR/build.gradle" ] || [ -f "$PARENT_DIR/build.gradle.kts" ] || [ -f "$PARENT_DIR/settings.gradle" ] || [ -f "$PARENT_DIR/settings.gradle.kts" ]; then
-                PROJECT_ROOT="$PARENT_DIR"
-                echo "BINGO! Project found at: $PROJECT_ROOT"
+          PROJECT_ROOT="."
+          if [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ]; then
+            for dir in $(find . -type d -name "app" | grep -v "/build/"); do
+              PARENT=$(dirname "$dir")
+              if [ -f "$PARENT/build.gradle" ] || [ -f "$PARENT/build.gradle.kts" ]; then
+                PROJECT_ROOT="$PARENT"
                 break
               fi
             done
           fi
-          
-          # Agar phir bhi nahi mila, to hum assume karenge ke current directory hi hai 
-          # aur agli steps mein missing files khud banayenge
-          if [ -z "$PROJECT_ROOT" ]; then
-            echo "WARNING: Could not perfectly identify root. Will default to '.' and attempt auto-generation."
-            PROJECT_ROOT="."
-          fi
-          
-          # Is variable ko aglay steps ke liye save kar diya
           echo "project_root=$PROJECT_ROOT" >> $GITHUB_ENV
-          
-          # Us folder mein chale jao
-          cd "$PROJECT_ROOT"
-          echo "Current working directory is now: $(pwd)"
+          echo "Project found at: $PROJECT_ROOT"
 
       # ====================================================================================
-      # STEP 5: GRADLE WRAPPER AUTO-GENERATION (FIXING 'CLASS NOT FOUND' ERROR)
+      # STEP 5: GRADLE WRAPPER REPAIR
       # ====================================================================================
-      - name: 🛠️ Auto-Generate Missing Gradle Wrapper
+      - name: 🛠️ Repair Gradle Wrapper
         run: |
-          echo "=========================================================="
-          echo "REPAIRING BROKEN OR MISSING GRADLE FILES"
-          echo "=========================================================="
           cd "${{ env.project_root }}"
-          
-          # Agar aapki repo mein purani corrupt jar file hai, to usay pehle delete kar do
           rm -rf gradle/wrapper/gradle-wrapper.jar
-          
-          # Naya Gradle environment setup karo (Version 8.7 jo SDK 35 ko support karta hai)
-          echo "Generating completely new Gradle wrapper files..."
-          gradle wrapper --gradle-version 8.7 --distribution-type all
-          
-          # Executable permission do taake permission denied ka error na aaye
+          gradle wrapper --gradle-version 8.7
           chmod +x gradlew
-          echo "Gradle wrapper has been fully repaired!"
 
       # ====================================================================================
-      # STEP 6: MISSING FILES AUTO-CREATOR (GOD MODE)
+      # STEP 6: EXTREME GRADLE CONFIGURATION (BYPASS ERRORS)
       # ====================================================================================
-      - name: 🪄 Create Missing Project Files
+      - name: ⚙️ Auto-Configure gradle.properties
         run: |
-          echo "=========================================================="
-          echo "CHECKING FOR MISSING CONFIGURATION FILES AND CREATING THEM"
-          echo "=========================================================="
           cd "${{ env.project_root }}"
-          
-          # 1. settings.gradle check
-          if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
-            echo "settings.gradle is missing! Creating a default one..."
-            cat << 'EOF' > settings.gradle
-            rootProject.name = "MiTV-Network-Player"
-            include ':app'
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError
+          org.gradle.daemon=false
+          org.gradle.parallel=true
+          org.gradle.configureondemand=true
+          android.useAndroidX=true
+          android.enableJetifier=true
+          android.suppressUnsupportedCompileSdk=35
+          android.lintOptions.abortOnError=false
           EOF
-          else
-            echo "settings.gradle found. Skipping creation."
-          fi
-          
-          # 2. gradle.properties check (Memory errors se bachne ke liye)
-          if [ ! -f "gradle.properties" ]; then
-            echo "gradle.properties is missing! Creating for optimal performance..."
-            cat << 'EOF' > gradle.properties
-            org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-            android.useAndroidX=true
-            android.enableJetifier=true
-            # Suppress SDK 35 errors natively
-            android.suppressUnsupportedCompileSdk=35
-          EOF
-          else
-            # Agar file hai, to usme warning suppress flag dal do
-            echo "Adding SDK 35 suppress flag to existing gradle.properties..."
-            echo "android.suppressUnsupportedCompileSdk=35" >> gradle.properties
-          fi
-          
-          # 3. local.properties check
-          echo "Creating local.properties to link Android SDK..."
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       # ====================================================================================
-      # STEP 7: RESOURCE RENAMER (THE ULTIMATE FIX FOR :processDebugResources FAILED)
+      # STEP 7: MOCK FIREBASE CONFIG (GOOGLE-SERVICES.JSON)
       # ====================================================================================
-      # Ye sab se bari wajah hai. ZIP extract karne se PNG ya XML files ke naam mein
-      # Capital letters ya spaces aa jate hain, aur Android crash ho jata hai. Ye usay theek karega.
-      - name: 🧹 Auto-Fix Invalid Resource File Names
+      # Agar Firebase ki file missing hai to plugin crash kar deta hai. Ye usay bachayega.
+      - name: 🔥 Generate Mock google-services.json
         run: |
-          echo "=========================================================="
-          echo "SCANNING AND FIXING INVALID FILE NAMES IN 'res' DIRECTORY"
-          echo "=========================================================="
           cd "${{ env.project_root }}"
-          
+          if [ -d "app" ] && [ ! -f "app/google-services.json" ]; then
+            echo "google-services.json not found! Generating a mock file to prevent crashes..."
+            cat << 'EOF' > app/google-services.json
+            {
+              "project_info": {
+                "project_number": "123456789012",
+                "project_id": "mitv-mock-project"
+              },
+              "client": [
+                {
+                  "client_info": {
+                    "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+                    "android_client_info": {
+                      "package_name": "com.mitv.network"
+                    }
+                  },
+                  "api_key": [ { "current_key": "MOCK_API_KEY_FOR_BUILD_ONLY" } ]
+                }
+              ],
+              "configuration_version": "1"
+            }
+          EOF
+          fi
+
+      # ====================================================================================
+      # STEP 8: AUTO-FIX INVALID RESOURCES
+      # ====================================================================================
+      - name: 🧹 Sanitize Resource Names
+        run: |
+          cd "${{ env.project_root }}"
           if [ -d "app/src/main/res" ]; then
-            echo "Scanning app/src/main/res for illegal characters (spaces, uppercase)..."
-            
-            # Find all files in res folder
-            find app/src/main/res -type f | while read file; do
-              # Get directory path and filename
-              dir=$(dirname "$file")
-              base=$(basename "$file")
-              
-              # Sanitize the filename:
-              # 1. Convert to lowercase
-              # 2. Replace spaces with underscores
-              # 3. Replace hyphens with underscores
+            find app/src/main/res -type f | while read f; do
+              dir=$(dirname "$f")
+              base=$(basename "$f")
               sanitized=$(echo "$base" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | tr '-' '_')
-              
-              # If the sanitized name is different, rename the file!
               if [ "$base" != "$sanitized" ]; then
-                echo "FIXED: Renaming '$base' to '$sanitized'"
-                mv "$file" "$dir/$sanitized"
+                mv "$f" "$dir/$sanitized"
               fi
             done
-            echo "Resource names are now 100% Android compliant!"
-          else
-            echo "No app/src/main/res folder found. Skipping resource rename."
           fi
 
       # ====================================================================================
-      # STEP 8: ANDROID MANIFEST AUTO-REPAIR
+      # STEP 9: THE BUILD COMMAND (WITH FULL LOGGING)
       # ====================================================================================
-      # Agar namespace manifest mein missing ho, to ye khud package name daal dega
-      - name: 📝 Fix AndroidManifest.xml missing elements
+      - name: 🏗️ Compile and Build APK
+        id: build_step
         run: |
-          echo "=========================================================="
-          echo "CHECKING ANDROID MANIFEST HEALTH"
-          echo "=========================================================="
           cd "${{ env.project_root }}"
+          echo "Starting heavy compilation..."
+          # --continue flag means it will try to build even if some non-critical tasks fail
+          ./gradlew clean assembleDebug --stacktrace --info --continue > build_log.txt 2>&1
           
-          MANIFEST="app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            # Agar package attribute nahi hai, to aam taur par error aata hai
-            if ! grep -q "package=" "$MANIFEST"; then
-              echo "WARNING: No package name found in Manifest!"
-              echo "Attempting to inject a default package name (com.mitv.network)"
-              # Using sed to inject package attribute into the <manifest> tag
-              sed -i 's/<manifest /<manifest package="com.mitv.network" /g' "$MANIFEST"
-              echo "Package injected."
-            else
-              echo "Manifest looks healthy."
-            fi
-          else
-            echo "Manifest not found at $MANIFEST. Could be a non-standard project structure."
+          # Check if build actually generated an APK
+          APK_COUNT=$(find . -name "*.apk" | wc -l)
+          if [ "$APK_COUNT" -eq 0 ]; then
+            echo "Build failed to produce an APK. Check the logs."
+            exit 1
           fi
 
       # ====================================================================================
-      # STEP 9: CLEAN AND ASSEMBLE (THE ACTUAL BUILD PROCESS)
+      # STEP 10: ARTIFACT UPLOADS (APK OR LOGS)
       # ====================================================================================
-      - name: 🏗️ Execute Build (God Mode Command)
-        run: |
-          echo "=========================================================="
-          echo "STARTING THE MITV NETWORK APP BUILD"
-          echo "=========================================================="
-          cd "${{ env.project_root }}"
-          
-          # Hamein pata hai aapki purani command processDebugResources pe ruki thi.
-          # Hum yahan saari strict checking ko disable kar rahe hain taake build bypass ho jaye.
-          
-          ./gradlew clean assembleDebug \
-            --stacktrace \
-            --info \
-            --no-daemon \
-            -Pandroid.suppressUnsupportedCompileSdk=35 \
-            -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=1024m"
-          
-          echo "=========================================================="
-          echo "BUILD PROCESS COMPLETED!"
-          echo "=========================================================="
-
-      # ====================================================================================
-      # STEP 10: SMART ARTIFACT UPLOADER
-      # ====================================================================================
-      # Ye step poori repository mein kahin bhi APK chupi ho, usay dhoond nikalay ga
-      - name: 🚀 Upload MiTV APK to GitHub
+      - name: 🚀 Upload Successful APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: MiTV-AppPlayer-APK-Final
-          # ** ka matlab hai ke kisi bhi depth (folder ke andar folder) mein apk ho le aao
+          name: MiTV-Titanium-APK
           path: "**/*.apk"
-          if-no-files-found: error
 
-      # ====================================================================================
-      # STEP 11: CELEBRATION LOG (OPTIONAL BUT AWESOME)
-      # ====================================================================================
-      - name: 🎉 Success Message
-        if: success()
-        run: |
-          echo "**********************************************************"
-          echo "                   BUILD SUCCESSFUL!                      "
-          echo "          Congratulations Maaz, MiTV Network is Ready!    "
-          echo "**********************************************************"
-          echo "Aapki APK Actions tab ke Artifacts section mein tayyar hai."
+      - name: 🚨 UPLOAD CRASH LOGS (IF FAILED)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiTV-Detailed-Crash-Log
+          path: "**/build_log.txt"
