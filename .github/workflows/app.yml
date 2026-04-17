@@ -2,15 +2,13 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - main  # Jab aap main branch par code push karenge tab ye chalega
-  pull_request:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Code
@@ -21,7 +19,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+
+      # Ye step missing gradle-wrapper.jar ko dobara bana dega
+      - name: Repair Gradle Wrapper
+        run: gradle wrapper
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
@@ -33,4 +34,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MiTV-App-Debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
