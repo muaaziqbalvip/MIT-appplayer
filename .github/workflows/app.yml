@@ -1,9 +1,9 @@
-name: Build MiTV APK
+name: Build MiTV Pro APK
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+  workflow_dispatch: # Taake aap manually bhi chala saken
 
 jobs:
   build:
@@ -12,32 +12,43 @@ jobs:
       contents: write
 
     steps:
+      # 1. Code ko GitHub runner mein lana
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 2. Latest JDK 21 install karna (SDK 35 ke liye zaroori hai)
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: gradle
 
-      # Gradle ko setup karega aur wrapper ka masla bypass karega
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: wrapper # Ye khud hi sahi version dhoond lega
+      # 3. Broken Gradle Wrapper ko fix karna (Sab se aham step)
+      - name: Regenerate Gradle Wrapper
+        run: |
+          # Agar aapki repo mein wrapper kharab hai, to ye usay naya bana dega
+          gradle wrapper --gradle-version 8.7
+          chmod +x gradlew
 
-      - name: Accept Android SDK Licenses
+      # 4. Android SDK Licenses accept karna
+      - name: Accept Android Licenses
         run: yes | sdkmanager --licenses || true
 
-      - name: Build APK (Force Build)
+      # 5. APK Build karna (Har kism ke error bypass flags ke sath)
+      - name: Build Debug APK
         run: |
-          # Yahan hum './gradlew' use nahi kar rahe kyunke aapki repo wali file kharab hai
-          # Hum direct 'gradle' command use kar rahe hain jo GitHub provide karta hai
-          gradle assembleDebug --stacktrace -Pandroid.suppressUnsupportedCompileSdk=35
+          ./gradlew assembleDebug \
+            --stacktrace \
+            --no-daemon \
+            -Pandroid.suppressUnsupportedCompileSdk=35 \
+            -Pandroid.testInstrumentationRunnerArguments.package=com.mitv.network
 
-      - name: Upload APK
+      # 6. APK file ko download ke liye save karna
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MiTV-App-Package
+          name: MiTV-Final-Build
+          # Ye path har kism ke folder structure mein APK dhoond lega
           path: "**/build/outputs/apk/debug/*.apk"
+          if-no-files-found: error
